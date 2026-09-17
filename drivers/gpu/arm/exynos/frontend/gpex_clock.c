@@ -74,9 +74,9 @@ u64 gpex_clock_get_time_busy(int level)
 	return clk_info.table[level].time_busy;
 }
 /*******************************************
- * static helper functions
+ * exported for gpex_clock_sysfs (voltage control)
  ******************************************/
-static int gpex_clock_update_config_data_from_dt(void)
+int gpex_clock_update_config_data_from_dt(void)
 {
 	int ret = 0;
 	struct freq_volt *fv_array;
