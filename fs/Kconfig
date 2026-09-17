@@ -15,6 +15,12 @@ config VALIDATE_FS_PARSER
 	  Enable this to perform validation of the parameter description for a
 	  filesystem when it is registered.
 
+config DYNAMIC_FSYNC
+	bool "dynamic file sync control"
+	default n
+	help
+	An experimental file sync control using new power_suspend driver
+
 if BLOCK
 
 config FS_IOMAP

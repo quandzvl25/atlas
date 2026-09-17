@@ -92,6 +92,7 @@ obj-$(CONFIG_ARM_TI_CPUFREQ)		+= ti-cpufreq.o
 obj-$(CONFIG_ARM_VEXPRESS_SPC_CPUFREQ)	+= vexpress-spc-cpufreq.o
 obj-$(CONFIG_ARM_EXYNOS_ACME)		+= exynos-acme.o
 obj-$(CONFIG_ARM_EXYNOS_UFC)		+= exynos-ufc.o
+obj-$(CONFIG_INPUT_BOOST)		+= cpu_input_boost.o
 
 
 ##################################################################################

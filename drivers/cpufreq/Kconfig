@@ -370,5 +370,37 @@ config QORIQ_CPUFREQ
 	  This adds the CPUFreq driver support for Freescale QorIQ SoCs
 	  which are capable of changing the CPU's frequency dynamically.
 
+config INPUT_BOOST
+	bool "Boost CPU on touch/key input and screen wake"
+	depends on CPU_FREQ
+	default n
+	help
+	  Temporarily boosts each online CPU cluster's minimum frequency to
+	  its own maximum whenever a touchscreen/key input event occurs, and
+	  for a longer duration right after the screen turns back on. This
+	  reduces perceived UI/touch latency at the cost of some extra power
+	  use during the boost window.
+
+	  Uses state_notifier (drivers/soc/samsung/state_notifier.c) to
+	  detect screen on/off, the same mechanism Dynamic Fsync already
+	  relies on in this kernel.
+
+	  If unsure, say N.
+
+config INPUT_BOOST_DURATION_MS
+	int "Input boost duration (ms)"
+	depends on INPUT_BOOST
+	default 40
+	help
+	  How long each touch/key event boosts the CPU for.
+
+config WAKE_BOOST_DURATION_MS
+	int "Screen wake boost duration (ms)"
+	depends on INPUT_BOOST
+	default 500
+	help
+	  How long to boost the CPU for right after the screen turns on,
+	  to smooth the unlock/wake animation.
+
 endif
 endmenu
