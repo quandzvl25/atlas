@@ -18,6 +18,7 @@ config VALIDATE_FS_PARSER
 config DYNAMIC_FSYNC
 	bool "dynamic file sync control"
 	default n
+	select STATE_NOTIFIER
 	help
 	An experimental file sync control using new power_suspend driver
 

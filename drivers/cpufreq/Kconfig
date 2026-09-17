@@ -373,6 +373,7 @@ config QORIQ_CPUFREQ
 config INPUT_BOOST
 	bool "Boost CPU on touch/key input and screen wake"
 	depends on CPU_FREQ
+	select STATE_NOTIFIER
 	default n
 	help
 	  Temporarily boosts each online CPU cluster's minimum frequency to
