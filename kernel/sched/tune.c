@@ -706,9 +706,6 @@ schedtune_css_alloc(struct cgroup_subsys_state *parent_css)
 	for (idx = 1; idx < BOOSTGROUPS_COUNT; ++idx) {
 		if (!allocated_group[idx])
 			break;
-#ifdef CONFIG_STUNE_ASSIST
-		write_default_values(&allocated_group[idx]->css);
-#endif
 	}
 	if (idx == BOOSTGROUPS_COUNT) {
 		pr_err("Trying to create more than %d SchedTune boosting groups\n",
@@ -722,6 +719,10 @@ schedtune_css_alloc(struct cgroup_subsys_state *parent_css)
 
 	/* Initialize per CPUs boost group support */
 	schedtune_boostgroup_init(st, idx);
+
+#ifdef CONFIG_STUNE_ASSIST
+	write_default_values(&st->css);
+#endif
 
 	return &st->css;
 
