@@ -740,6 +740,15 @@ out:
 static int
 schedtune_css_online(struct cgroup_subsys_state *css)
 {
+	/*
+	 * schedtune_cgrp_subsys có .early_init = 1 nên root css được
+	 * online trong cgroup_init_early(), rất sớm -- trước khi kernfs
+	 * dựng xong. css->cgroup->kn lúc đó có thể vẫn NULL. Root cũng
+	 * không bao giờ khớp tên "top-app"/"foreground" nên bỏ qua an toàn.
+	 */
+	if (!css->cgroup || !css->cgroup->kn)
+		return 0;
+
 	write_default_values(css);
 	return 0;
 }
