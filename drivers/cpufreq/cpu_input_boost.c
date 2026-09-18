@@ -150,7 +150,6 @@ static void __cpu_input_boost_kick(struct boost_drv *b)
 		return;
 
 	set_boost_bit(b, INPUT_BOOST);
-	gpu_boost_engage();
 	wake_up(&b->boost_waitq);
 	mod_delayed_work(system_unbound_wq, &b->input_unboost,
 			  msecs_to_jiffies(CONFIG_INPUT_BOOST_DURATION_MS));
@@ -189,7 +188,6 @@ static void __cpu_input_boost_kick_max(struct boost_drv *b,
 				   new_expires) != curr_expires);
 
 	set_boost_bit(b, MAX_BOOST);
-	gpu_boost_engage();
 	wake_up(&b->boost_waitq);
 	mod_delayed_work(system_unbound_wq, &b->max_unboost, boost_jiffies);
 }
@@ -210,7 +208,6 @@ static void input_unboost_worker(struct work_struct *work)
 					    typeof(*b), input_unboost);
 
 	clear_boost_bit(b, INPUT_BOOST);
-	gpu_boost_disengage(b);
 	wake_up(&b->boost_waitq);
 }
 
@@ -220,7 +217,6 @@ static void max_unboost_worker(struct work_struct *work)
 					    typeof(*b), max_unboost);
 
 	clear_boost_bit(b, MAX_BOOST);
-	gpu_boost_disengage(b);
 	wake_up(&b->boost_waitq);
 }
 
@@ -242,6 +238,26 @@ static int cpu_boost_thread(void *data)
 			kthread_should_stop());
 
 		old_state = curr_state;
+
+		/*
+		 * gpex_clock_set() (bên trong gpex_clock_lock_clock) gọi
+		 * mutex_lock() nên có thể sleep -- KHÔNG được gọi trực tiếp
+		 * từ cpu_input_boost_input_event()/state_notifier_cb(), vì
+		 * cả hai chạy trong lúc Linux input core đang giữ
+		 * dev->event_lock (spinlock, IRQ tắt -- xem input.c). Gọi
+		 * mutex có thể sleep trong context đó gây "scheduling while
+		 * atomic": nếu clk_info.clock_lock đang bị luồng khác giữ
+		 * (rất hay xảy ra khi GPU DVFS governor đang chạy lúc chơi
+		 * game), CPU treo ngay tại event_lock, kéo theo toàn bộ input
+		 * bị đơ cứng và cuối cùng watchdog reboot máy. Vì vậy việc
+		 * engage/disengage GPU boost được dồn hết vào đây, chạy trong
+		 * kthread process context, an toàn để sleep.
+		 */
+		if (curr_state & (INPUT_BOOST | MAX_BOOST))
+			gpu_boost_engage();
+		else
+			gpu_boost_disengage(b);
+
 		update_online_cpu_policy();
 	}
 
