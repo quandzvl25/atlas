@@ -475,13 +475,21 @@ static inline ssize_t print_fvmap(char *buf, int start, int end)
 				volt_offset_percent);
 
 		if (buf != NULL && i >= start && i < end) {
-			len += sprintf(buf + len, "dvfs_type : %s - id : %u\n",
+			if (len >= PAGE_SIZE)
+				continue;
+			len += scnprintf(buf + len, PAGE_SIZE - len,
+				"dvfs_type : %s - id : %u\n",
 				vclk->name, fvmap_header[i].dvfs_type);
-			len += sprintf(buf + len, "  num_of_lv      : %d\n", fvmap_header[i].num_of_lv);
+			len += scnprintf(buf + len, PAGE_SIZE - len,
+				"  num_of_lv      : %d\n", fvmap_header[i].num_of_lv);
 
-			for (j = 0; j < fvmap_header[i].num_of_lv; j++)
-				len += sprintf(buf + len, "  rate : %7d Hz, volt : %d uV\n",
+			for (j = 0; j < fvmap_header[i].num_of_lv; j++) {
+				if (len >= PAGE_SIZE)
+					break;
+				len += scnprintf(buf + len, PAGE_SIZE - len,
+					"  rate : %7d Hz, volt : %d uV\n",
 					cur->table[j].rate, cur->table[j].volt);
+			}
 		}
 	}
 
@@ -503,9 +511,13 @@ ssize_t fvmap_print(char *buf, unsigned int dvfs_type)
 		if (fvmap_header[i].dvfs_type == dvfs_type) {
 			cur = fvmap_base + fvmap_header[i].o_ratevolt;
 
-			for (j = 0; j < fvmap_header[i].num_of_lv; j++)
-				len += sprintf(buf + len, "%d %d\n",
+			for (j = 0; j < fvmap_header[i].num_of_lv; j++) {
+				if (len >= PAGE_SIZE)
+					break;
+				len += scnprintf(buf + len, PAGE_SIZE - len,
+					"%d %d\n",
 					cur->table[j].rate, cur->table[j].volt);
+			}
 		}
 	}
 
