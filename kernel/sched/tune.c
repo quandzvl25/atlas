@@ -720,15 +720,30 @@ schedtune_css_alloc(struct cgroup_subsys_state *parent_css)
 	/* Initialize per CPUs boost group support */
 	schedtune_boostgroup_init(st, idx);
 
-#ifdef CONFIG_STUNE_ASSIST
-	write_default_values(&st->css);
-#endif
-
 	return &st->css;
 
 out:
 	return ERR_PTR(-ENOMEM);
 }
+
+#ifdef CONFIG_STUNE_ASSIST
+/*
+ * css->cgroup chỉ được cgroup core gán SAU khi css_alloc() trả về
+ * (xem init_and_link_css() trong kernel/cgroup/cgroup.c, gọi sau
+ * ss->css_alloc()). write_default_values() đọc css->cgroup->kn->name,
+ * nên gọi nó từ css_alloc là NULL pointer dereference ngay -- crash
+ * mỗi lần tạo cgroup schedtune, tức là rất sớm lúc boot (trước khi
+ * init.rc tạo xong cgroup top-app/foreground), gây bootloop chỉ thấy
+ * logo Samsung. css_online chạy sau init_and_link_css nên css->cgroup
+ * lúc này đã hợp lệ.
+ */
+static int
+schedtune_css_online(struct cgroup_subsys_state *css)
+{
+	write_default_values(css);
+	return 0;
+}
+#endif
 
 static void
 schedtune_boostgroup_release(struct schedtune *st)
@@ -760,6 +775,9 @@ schedtune_css_free(struct cgroup_subsys_state *css)
 struct cgroup_subsys schedtune_cgrp_subsys = {
 	.css_alloc	= schedtune_css_alloc,
 	.css_free	= schedtune_css_free,
+#ifdef CONFIG_STUNE_ASSIST
+	.css_online	= schedtune_css_online,
+#endif
 	.can_attach     = schedtune_can_attach,
 	.cancel_attach  = schedtune_cancel_attach,
 	.legacy_cftypes	= files,
