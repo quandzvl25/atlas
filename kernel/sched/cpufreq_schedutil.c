@@ -869,7 +869,10 @@ static int sugov_init(struct cpufreq_policy *policy)
 		goto stop_kthread;
 	}
 
-	tunables->up_rate_limit_us = cpufreq_policy_transition_delay_us(policy);
+	/* Faster ramp-up for touch/app-launch responsiveness; keep the
+	 * hardware-derived delay for ramp-down to avoid battery-costly
+	 * oscillation. */
+	tunables->up_rate_limit_us = min(cpufreq_policy_transition_delay_us(policy), 500U);
 	tunables->down_rate_limit_us = cpufreq_policy_transition_delay_us(policy);
 
 	policy->governor_data = sg_policy;
