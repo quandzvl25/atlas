@@ -35,7 +35,9 @@ jobs:
       - name: Download AOSP Clang
         run: |
           mkdir -p clang-r547379
-          curl -L "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz" -o clang.tar.gz
+          curl -L --retry 5 --retry-delay 5 --retry-connrefused -f \
+            "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz" \
+            -o clang.tar.gz
           tar -xzf clang.tar.gz -C clang-r547379
           chmod -R +x clang-r547379/bin
           rm -f clang.tar.gz
@@ -55,7 +57,19 @@ jobs:
       - name: Build dtb
         run: |
           dtc -I dts -O dtb -o raw.dtb arch/arm64/boot/dts/exynos/exynos3830.dts
-          curl -sL "https://android.googlesource.com/platform/prebuilts/misc/+/master/linux-x86/libufdt/mkdtimg?format=TEXT" | base64 -d > mkdtimg
+
+          curl -sL --retry 5 --retry-delay 5 --retry-connrefused -f \
+            "https://android.googlesource.com/platform/prebuilts/misc/+/master/linux-x86/libufdt/mkdtimg?format=TEXT" \
+            -o mkdtimg.b64
+
+          base64 -d mkdtimg.b64 > mkdtimg
+          rm -f mkdtimg.b64
+
+          if [ ! -s mkdtimg ]; then
+            echo "mkdtimg download/decode failed - resulting file is empty, aborting"
+            exit 1
+          fi
+
           chmod +x mkdtimg
           ./mkdtimg create dtb --page_size=2048 --custom1=0xff000000 raw.dtb
           echo "dtb size: $(du -h dtb | cut -f1)"
