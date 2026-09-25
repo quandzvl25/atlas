@@ -3252,7 +3252,7 @@
 			samsung,dw-mshc-hs400-ulp-timing = <0x03 0x00 0x04 0x02>;
 			num-ref-clks = <0x0c>;
 			ciu_clkin = <0x19 0x32 0x32 0x19 0x32 0x64 0xc8 0x32 0x32 0xc8 0xc8 0xc8>;
-			clk-drive-number = <0x06>;
+			clk-drive-number = <0x04>;
 			pinctrl-names = "default", "fast-slew-rate-1x", "fast-slew-rate-2x", "fast-slew-rate-3x", "fast-slew-rate-4x";
 			pinctrl-0 = <0xffffffff 0x26 0xffffffff 0xffffffff 0xffffffff 0xffffffff 0xffffffff>;
 			pinctrl-1 = <0xffffffff>;
@@ -3279,8 +3279,6 @@
 			supports-cmd23;
 			supports-erase;
 			supports-highspeed;
-			sd-uhs-sdr50;
-			sd-uhs-sdr104;
 			card-detect-gpio;
 			card-detect-invert;
 			bypass-for-allpass;
