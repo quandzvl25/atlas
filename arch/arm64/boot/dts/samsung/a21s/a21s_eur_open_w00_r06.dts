@@ -3283,6 +3283,7 @@
 			supports-cmd23;
 			supports-erase;
 			supports-highspeed;
+			sd-uhs-ddr50;
 			card-detect-gpio;
 			card-detect-invert;
 			bypass-for-allpass;
