@@ -56,7 +56,9 @@ jobs:
 
       - name: Build dtb
         run: |
-          dtc -I dts -O dtb -o raw.dtb arch/arm64/boot/dts/exynos/exynos3830.dts
+          dtc -I dts -O dtb -o base.dtb arch/arm64/boot/dts/exynos/exynos3830.dts
+          dtc -@ -I dts -O dtb -o overlay_r06.dtbo arch/arm64/boot/dts/samsung/a21s/a21s_eur_open_w00_r06.dts
+          fdtoverlay -i base.dtb -o raw.dtb overlay_r06.dtbo
 
           curl -sL --retry 5 --retry-delay 5 --retry-connrefused -f \
             "https://android.googlesource.com/platform/prebuilts/misc/+/master/linux-x86/libufdt/mkdtimg?format=TEXT" \
