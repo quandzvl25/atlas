@@ -3157,6 +3157,9 @@
 			supports-cmd23;
 			supports-erase;
 			supports-highspeed;
+			vqmmc-supply = <0x57>;
+			vmmc-supply = <0x5a>;
+			sd-uhs-ddr50;
 			card-detect-gpio;
 			card-detect-invert;
 			bypass-for-allpass;
