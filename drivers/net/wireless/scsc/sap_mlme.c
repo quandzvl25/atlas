@@ -35,9 +35,6 @@ static struct sap_api sap_mlme = {
 static int sap_mlme_notifier(struct slsi_dev *sdev, unsigned long event)
 {
 	int i;
-#if defined(CONFIG_SLSI_WLAN_STA_FWD_BEACON) && (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 10)
-	struct net_device *dev;
-#endif
 	int level;
 	struct netdev_vif *ndev_vif;
 	bool is_recovery = false;
@@ -114,23 +111,8 @@ static int sap_mlme_notifier(struct slsi_dev *sdev, unsigned long event)
 		break;
 
 	case SCSC_WIFI_RESUME:
-#if defined(CONFIG_SLSI_WLAN_STA_FWD_BEACON) && (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 10)
-		dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_WLAN);
-		ndev_vif = netdev_priv(dev);
-		SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-
-		if (ndev_vif->is_wips_running && ndev_vif->activated &&
-		    ndev_vif->vif_type == FAPI_VIFTYPE_STATION &&
-		    ndev_vif->sta.vif_status == SLSI_VIF_STATUS_CONNECTED) {
-			ndev_vif->is_wips_running = false;
-
-			slsi_send_forward_beacon_abort_vendor_event(sdev, dev,
-								    SLSI_FORWARD_BEACON_ABORT_REASON_SUSPENDED);
-			SLSI_INFO_NODEV("FORWARD_BEACON: SUSPEND_RESUMED!! send abort event\n");
-		}
-
-		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-#endif
+		/* Do not take ndev_vif->vif_mutex here: resume runs under wiphy_lock while
+		 * vendor-event workers hold vif_mutex and wait for wiphy_lock (AB-BA). */
 		SLSI_MUTEX_LOCK(sdev->device_config_mutex);
 		if (!(sdev->device_config.user_suspend_mode) || (sdev->device_config.host_state & SLSI_HOSTSTATE_LCD_ACTIVE)) {
 			SLSI_WARN(sdev, "RESUME but no SETSUSPENDMODE\n");
