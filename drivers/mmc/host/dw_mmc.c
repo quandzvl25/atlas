@@ -544,9 +544,28 @@ static bool dw_mci_ctrl_reset(struct dw_mci *host, u32 reset)
 	return ret;
 }
 
+/* ---- DEBUG (SD slot 13500000 only): exposed in /sys/module/dw_mmc/parameters/ ---- */
+static unsigned long dbg_busy_cnt, dbg_busy_us, dbg_busy_max_us;
+static unsigned long dbg_tasklet_cnt, dbg_tasklet_us, dbg_tasklet_max_us;
+static unsigned long dbg_data_req, dbg_pio_fallback;
+module_param(dbg_busy_cnt, ulong, 0444);
+module_param(dbg_busy_us, ulong, 0444);
+module_param(dbg_busy_max_us, ulong, 0444);
+module_param(dbg_tasklet_cnt, ulong, 0444);
+module_param(dbg_tasklet_us, ulong, 0444);
+module_param(dbg_tasklet_max_us, ulong, 0444);
+module_param(dbg_data_req, ulong, 0444);
+module_param(dbg_pio_fallback, ulong, 0444);
+
+static inline bool dbg_is_sd(struct dw_mci *host)
+{
+	return strstr(dev_name(host->dev), "13500000") != NULL;
+}
+
 static void dw_mci_wait_while_busy(struct dw_mci *host, u32 cmd_flags)
 {
 	u32 status;
+	ktime_t dbg_t0 = ktime_get();
 
 	/*
 	 * Databook says that before issuing a new data transfer command
@@ -562,6 +581,14 @@ static void dw_mci_wait_while_busy(struct dw_mci *host, u32 cmd_flags)
 					      !(status & SDMMC_STATUS_BUSY),
 					      10, 500 * USEC_PER_MSEC))
 			dev_err(host->dev, "Busy; trying anyway\n");
+		if (dbg_is_sd(host)) {
+			unsigned long us = ktime_to_us(ktime_sub(ktime_get(), dbg_t0));
+
+			dbg_busy_cnt++;
+			dbg_busy_us += us;
+			if (us > dbg_busy_max_us)
+				dbg_busy_max_us = us;
+		}
 	}
 }
 
@@ -1675,7 +1702,12 @@ static void dw_mci_submit_data(struct dw_mci *host, struct mmc_data *data)
 
 	dw_mci_ctrl_thld(host, data);
 
+	if (dbg_is_sd(host))
+		dbg_data_req++;
+
 	if (dw_mci_submit_data_dma(host, data)) {
+		if (dbg_is_sd(host))
+			dbg_pio_fallback++;
 		if (SDMMC_GET_FCNT(mci_readl(host, STATUS)))
 			dw_mci_ctrl_reset(host, SDMMC_CTRL_FIFO_RESET);
 
@@ -2744,7 +2776,26 @@ static void dw_mci_sd_power_off(struct work_struct *work)
 	}
 }
 
+static void __dw_mci_tasklet_func(unsigned long priv);
+
 static void dw_mci_tasklet_func(unsigned long priv)
+{
+	struct dw_mci *host = (struct dw_mci *)priv;
+	ktime_t t0 = ktime_get();
+	unsigned long us;
+
+	__dw_mci_tasklet_func(priv);
+
+	if (dbg_is_sd(host)) {
+		us = ktime_to_us(ktime_sub(ktime_get(), t0));
+		dbg_tasklet_cnt++;
+		dbg_tasklet_us += us;
+		if (us > dbg_tasklet_max_us)
+			dbg_tasklet_max_us = us;
+	}
+}
+
+static void __dw_mci_tasklet_func(unsigned long priv)
 {
 	struct dw_mci *host = (struct dw_mci *)priv;
 	struct mmc_data	*data;
