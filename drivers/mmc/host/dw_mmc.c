@@ -548,6 +548,14 @@ static bool dw_mci_ctrl_reset(struct dw_mci *host, u32 reset)
 static unsigned long dbg_busy_cnt, dbg_busy_us, dbg_busy_max_us;
 static unsigned long dbg_tasklet_cnt, dbg_tasklet_us, dbg_tasklet_max_us;
 static unsigned long dbg_data_req, dbg_pio_fallback;
+static unsigned long dbg_own_timeout, dbg_own_idx, dbg_own_val;
+static unsigned long dbg_fb_pre, dbg_fb_pre_err, dbg_fb_start;
+module_param(dbg_own_timeout, ulong, 0444);
+module_param(dbg_own_idx, ulong, 0444);
+module_param(dbg_own_val, ulong, 0444);
+module_param(dbg_fb_pre, ulong, 0444);
+module_param(dbg_fb_pre_err, ulong, 0444);
+module_param(dbg_fb_start, ulong, 0444);
 module_param(dbg_busy_cnt, ulong, 0444);
 module_param(dbg_busy_us, ulong, 0444);
 module_param(dbg_busy_max_us, ulong, 0444);
@@ -1072,8 +1080,20 @@ static inline int dw_mci_prepare_desc64(struct dw_mci *host,
 			 */
 			if (readl_poll_timeout_atomic(&desc->des0, val,
 						!(val & IDMAC_DES0_OWN),
-						10, 100 * USEC_PER_MSEC))
-				goto err_own_bit;
+						10, 1000)) {
+				/*
+				 * Stale OWN bit left by an aborted transfer. The IDMAC
+				 * was reset before this request, so nothing is in
+				 * flight: reclaim the descriptor instead of spinning
+				 * 100 ms and falling back to PIO for every request.
+				 */
+				if (dbg_is_sd(host)) {
+					dbg_own_timeout++;
+					dbg_own_idx = desc - (struct idmac_desc_64addr *)host->sg_cpu;
+					dbg_own_val = val;
+				}
+				desc->des0 = 0;
+			}
 
 			/*
 			 * Set the OWN bit and disable interrupts
@@ -1116,12 +1136,6 @@ static inline int dw_mci_prepare_desc64(struct dw_mci *host,
 	desc_last->des0 |= IDMAC_DES0_LD;
 
 	return 0;
-err_own_bit:
-	/* restore the descriptor chain as it's polluted */
-	dev_dbg(host->dev, "descriptor is still owned by IDMAC.\n");
-	memset(host->sg_cpu, 0, DESC_RING_BUF_SZ);
-	dw_mci_idmac_init(host);
-	return -EINVAL;
 }
 
 static inline int dw_mci_prepare_desc32(struct dw_mci *host,
@@ -1153,8 +1167,15 @@ static inline int dw_mci_prepare_desc32(struct dw_mci *host,
 			 */
 			if (readl_poll_timeout_atomic(&desc->des0, val,
 						      IDMAC_OWN_CLR64(val),
-						      10, 100 * USEC_PER_MSEC))
-				goto err_own_bit;
+						      10, 1000)) {
+				/* see dw_mci_prepare_desc64(): reclaim stale OWN bit */
+				if (dbg_is_sd(host)) {
+					dbg_own_timeout++;
+					dbg_own_idx = desc - (struct idmac_desc *)host->sg_cpu;
+					dbg_own_val = le32_to_cpu(val);
+				}
+				desc->des0 = 0;
+			}
 
 			/*
 			 * Set the OWN bit and disable interrupts
@@ -1184,12 +1205,6 @@ static inline int dw_mci_prepare_desc32(struct dw_mci *host,
 	desc_last->des0 |= cpu_to_le32(IDMAC_DES0_LD);
 
 	return 0;
-err_own_bit:
-	/* restore the descriptor chain as it's polluted */
-	dev_dbg(host->dev, "descriptor is still owned by IDMAC.\n");
-	memset(host->sg_cpu, 0, DESC_RING_BUF_SZ);
-	dw_mci_idmac_init(host);
-	return -EINVAL;
 }
 
 static int dw_mci_idmac_start_dma(struct dw_mci *host, unsigned int sg_len)
@@ -1648,6 +1663,10 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 
 	sg_len = dw_mci_pre_dma_transfer(host, data, COOKIE_MAPPED);
 	if (sg_len < 0) {
+		if (dbg_is_sd(host)) {
+			dbg_fb_pre++;
+			dbg_fb_pre_err = (unsigned long)(-sg_len);
+		}
 		host->dma_ops->stop(host);
 		dw_mci_set_timeout(host, dw_mci_calc_hto_timeout(host));
 		return sg_len;
@@ -1674,6 +1693,8 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 	spin_unlock_irqrestore(&host->irq_lock, irqflags);
 
 	if (host->dma_ops->start(host, sg_len)) {
+		if (dbg_is_sd(host))
+			dbg_fb_start++;
 		host->dma_ops->stop(host);
 		/* We can't do DMA, try PIO for this one */
 		dev_dbg(host->dev, "%s: fall back to PIO mode for current transfer\n", __func__);
