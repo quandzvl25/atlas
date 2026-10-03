@@ -550,6 +550,15 @@ static unsigned long dbg_tasklet_cnt, dbg_tasklet_us, dbg_tasklet_max_us;
 static unsigned long dbg_data_req, dbg_pio_fallback;
 static unsigned long dbg_own_timeout, dbg_own_idx, dbg_own_val;
 static unsigned long dbg_fb_pre, dbg_fb_pre_err, dbg_fb_start;
+/* SD transfer duration histogram (ms): <=20, <=50, <=100, <=250, <=1000, >1000 */
+static unsigned long dbg_xr_hist[6], dbg_xw_hist[6], dbg_xr_max_ms, dbg_xw_max_ms;
+static int dbg_xr_n = 6, dbg_xw_n = 6;
+static ktime_t dbg_xfer_t0;
+static bool dbg_xfer_w, dbg_xfer_on;
+module_param_array(dbg_xr_hist, ulong, &dbg_xr_n, 0444);
+module_param_array(dbg_xw_hist, ulong, &dbg_xw_n, 0444);
+module_param(dbg_xr_max_ms, ulong, 0444);
+module_param(dbg_xw_max_ms, ulong, 0444);
 module_param(dbg_own_timeout, ulong, 0444);
 module_param(dbg_own_idx, ulong, 0444);
 module_param(dbg_own_val, ulong, 0444);
@@ -1080,7 +1089,7 @@ static inline int dw_mci_prepare_desc64(struct dw_mci *host,
 			 */
 			if (readl_poll_timeout_atomic(&desc->des0, val,
 						!(val & IDMAC_DES0_OWN),
-						10, 1000)) {
+						10, 20)) {
 				/*
 				 * Stale OWN bit left by an aborted transfer. The IDMAC
 				 * was reset before this request, so nothing is in
@@ -1167,7 +1176,7 @@ static inline int dw_mci_prepare_desc32(struct dw_mci *host,
 			 */
 			if (readl_poll_timeout_atomic(&desc->des0, val,
 						      IDMAC_OWN_CLR64(val),
-						      10, 1000)) {
+						      10, 20)) {
 				/* see dw_mci_prepare_desc64(): reclaim stale OWN bit */
 				if (dbg_is_sd(host)) {
 					dbg_own_timeout++;
@@ -1723,8 +1732,12 @@ static void dw_mci_submit_data(struct dw_mci *host, struct mmc_data *data)
 
 	dw_mci_ctrl_thld(host, data);
 
-	if (dbg_is_sd(host))
+	if (dbg_is_sd(host)) {
 		dbg_data_req++;
+		dbg_xfer_t0 = ktime_get();
+		dbg_xfer_w = !(data->flags & MMC_DATA_READ);
+		dbg_xfer_on = true;
+	}
 
 	if (dw_mci_submit_data_dma(host, data)) {
 		if (dbg_is_sd(host))
@@ -2806,6 +2819,23 @@ static void dw_mci_tasklet_func(unsigned long priv)
 	unsigned long us;
 
 	__dw_mci_tasklet_func(priv);
+
+	if (dbg_is_sd(host) && dbg_xfer_on && !host->data) {
+		unsigned long ms = ktime_to_ms(ktime_sub(ktime_get(), dbg_xfer_t0));
+		int b = ms <= 20 ? 0 : ms <= 50 ? 1 : ms <= 100 ? 2 :
+			ms <= 250 ? 3 : ms <= 1000 ? 4 : 5;
+
+		dbg_xfer_on = false;
+		if (dbg_xfer_w) {
+			dbg_xw_hist[b]++;
+			if (ms > dbg_xw_max_ms)
+				dbg_xw_max_ms = ms;
+		} else {
+			dbg_xr_hist[b]++;
+			if (ms > dbg_xr_max_ms)
+				dbg_xr_max_ms = ms;
+		}
+	}
 
 	if (dbg_is_sd(host)) {
 		us = ktime_to_us(ktime_sub(ktime_get(), t0));
