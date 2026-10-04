@@ -3296,6 +3296,7 @@
 			ssc-rate = <0x03>;
 			card-detect-delay = <0xc8>;
 			data-timeout = <0x5dc>;
+			extended-tmout;
 			hto-timeout = <0x50>;
 			samsung,dw-mshc-ciu-div = <0x03>;
 			clock-frequency = <0x2faf0800>;
