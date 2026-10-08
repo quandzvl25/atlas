@@ -81,7 +81,8 @@ static u64 zswap_duplicate_entry;
 #define ZSWAP_PARAM_UNSET ""
 
 /* Enable/disable zswap (disabled by default) */
-static bool zswap_enabled;
+/* On by default: the kernel has no ZSWAP_DEFAULT_ON and the sysfs knob is not writable here. */
+static bool zswap_enabled = true;
 static int zswap_enabled_param_set(const char *,
 				   const struct kernel_param *);
 static struct kernel_param_ops zswap_enabled_param_ops = {
