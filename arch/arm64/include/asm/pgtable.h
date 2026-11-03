@@ -775,6 +775,16 @@ extern pgd_t tramp_pg_dir[PTRS_PER_PGD];
 
 extern int kern_addr_valid(unsigned long addr);
 
+/* whether hardware updates the Access flag (ID_AA64MMFR1_EL1.HADBS >= 1) */
+static inline bool cpu_has_hw_af(void)
+{
+	if (!IS_ENABLED(CONFIG_ARM64_HW_AFDBM))
+		return false;
+
+	return (read_sysreg(id_aa64mmfr1_el1) & 0xf) >= 1;
+}
+#define arch_has_hw_pte_young	cpu_has_hw_af
+
 
 void pgd_cache_init(void);
 #define pgtable_cache_init	pgd_cache_init

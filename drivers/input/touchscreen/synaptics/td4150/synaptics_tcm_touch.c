@@ -1166,6 +1166,8 @@ exit:
 }
 
 
+static void touch_restore_glove_mode(struct syna_tcm_hcd *tcm_hcd);
+
 int touch_init(struct syna_tcm_hcd *tcm_hcd)
 {
 	int retval;
@@ -1201,6 +1203,9 @@ int touch_init(struct syna_tcm_hcd *tcm_hcd)
 	else
 		input_info(true, tcm_hcd->pdev->dev.parent, "enable edge reject\n");
 #endif
+	/* glove mode is enabled by default (tcm_hcd->glove_mode), apply it now */
+	touch_restore_glove_mode(tcm_hcd);
+
 	return 0;
 
 err_set_input_reporting:

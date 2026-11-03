@@ -2985,6 +2985,9 @@ static int syna_tcm_probe(struct platform_device *pdev)
 	tcm_hcd->write_message = syna_tcm_write_message;
 	tcm_hcd->get_dynamic_config = syna_tcm_get_dynamic_config;
 	tcm_hcd->set_dynamic_config = syna_tcm_set_dynamic_config;
+
+	/* touch glove mode on by default; restored after every reset/resume */
+	tcm_hcd->glove_mode = 1;
 	tcm_hcd->get_data_location = syna_tcm_get_data_location;
 
 	tcm_hcd->rd_chunk_size = RD_CHUNK_SIZE;

@@ -9,9 +9,9 @@ obj-$(CONFIG_CAMERA_FLASH_S2MU106_OBJ) += is-flash-s2mu106.o
 obj-$(CONFIG_CAMERA_FLASH_I2C_OBJ) += is-helper-flash-i2c.o \
 				      is-flash-i2c.o
 
-EXTRA_CFLAGS += -Idrivers/media/platform/exynos/camera
-EXTRA_CFLAGS += -Idrivers/media/platform/exynos/camera/include
-EXTRA_CFLAGS += -Idrivers/media/platform/exynos/camera/vendor
-EXTRA_CFLAGS += -Idrivers/media/platform/exynos/camera/hardware/api
-EXTRA_CFLAGS += -Idrivers/media/platform/exynos/camera/sensor/module_framework
-EXTRA_CFLAGS += -Idrivers/media/platform/exynos/camera/sensor
+EXTRA_CFLAGS += -I $(srctree)/drivers/media/platform/exynos/camera
+EXTRA_CFLAGS += -I $(srctree)/drivers/media/platform/exynos/camera/include
+EXTRA_CFLAGS += -I $(srctree)/drivers/media/platform/exynos/camera/vendor
+EXTRA_CFLAGS += -I $(srctree)/drivers/media/platform/exynos/camera/hardware/api
+EXTRA_CFLAGS += -I $(srctree)/drivers/media/platform/exynos/camera/sensor/module_framework
+EXTRA_CFLAGS += -I $(srctree)/drivers/media/platform/exynos/camera/sensor
